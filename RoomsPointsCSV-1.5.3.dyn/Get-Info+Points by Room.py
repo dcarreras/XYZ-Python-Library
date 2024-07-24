@@ -84,7 +84,11 @@ output_data = []
 for room in IN[0]:
     revit_room = UnwrapElement(room)
     room_name = revit_room.get_Parameter(BuiltInParameter.ROOM_NAME).AsString()
+    room_number = revit_room.get_Parameter(BuiltInParameter.ROOM_NUMBER).AsString()  # Extracting the room number
     room_id = revit_room.Id.ToString()
+
+    # The rest of your processing code will go here...
+
 
     # Get the level of the room
     level_id = revit_room.LevelId
