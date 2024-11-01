@@ -22,36 +22,33 @@ def get_unique_id(room_name, point_type):
     return unique_id
 
 # Function to get point information including the True North angle
-def get_point_info(point, point_type, level_name, level_id, room_name, room_id, north_angle):
-    if point is None:  # If no point is provided, return None to indicate an issue
+def get_point_info(point, point_type, level_name, level_id, room_identifier, room_id, north_angle):
+    if point is None:
         return None
-    unique_id = get_unique_id(room_name, point_type)
+    unique_id = get_unique_id(room_identifier, point_type)
     north_angle_degrees = north_angle * 180.0 / math.pi  # Convert angle from radians to degrees
-    return (unique_id, point.X, point.Y, point.Z, north_angle_degrees, point_type, level_name, level_id, room_name, room_id)
+    return (unique_id, point.X, point.Y, point.Z, north_angle_degrees, point_type, level_name, level_id, room_identifier, room_id)
 
-# Adjusted function to extract boundary points of a room and ensure the first point repeats at the end
+# Function to extract boundary points of a room and ensure the first point repeats at the end
 def get_boundary_points(room):
     boundary_points = []
     opt = SpatialElementBoundaryOptions()
     for boundary in room.GetBoundarySegments(opt):
-        loop_points = []  # Temporary list to store points for the current loop
+        loop_points = []
         for segment in boundary:
             start_pt = segment.GetCurve().GetEndPoint(0)
-            # Append the start point of each segment to the loop points
             loop_points.append(start_pt.ToPoint())
-            # The end point will be considered as the start point in the next segment
-        # Ensure the loop is closed by appending the first point to the end of the loop points list
         if loop_points:
             loop_points.append(loop_points[0])
         boundary_points.extend(loop_points)
     return boundary_points
-    
+
 # Function to calculate the centroid of boundary points
 def calculate_room_center(boundary_points):
+    if not boundary_points:
+        return None
     sum_x = sum_y = sum_z = 0
     num_points = len(boundary_points)
-    if num_points == 0:  # Check if there are no boundary points
-        return None  # Return None to indicate no centroid could be calculated
     for point in boundary_points:
         sum_x += point.X
         sum_y += point.Y
@@ -84,11 +81,11 @@ output_data = []
 for room in IN[0]:
     revit_room = UnwrapElement(room)
     room_name = revit_room.get_Parameter(BuiltInParameter.ROOM_NAME).AsString()
-    room_number = revit_room.get_Parameter(BuiltInParameter.ROOM_NUMBER).AsString()  # Extracting the room number
+    room_number = revit_room.get_Parameter(BuiltInParameter.ROOM_NUMBER).AsString()
     room_id = revit_room.Id.ToString()
 
-    # The rest of your processing code will go here...
-
+    # Concatenate room number and room name
+    room_identifier = "{0} - {1}".format(room_number, room_name)
 
     # Get the level of the room
     level_id = revit_room.LevelId
@@ -101,17 +98,17 @@ for room in IN[0]:
     # Calculate the room centroid and adjust based on Project Base Point
     center_point = calculate_room_center(boundary_points)
     if center_point is None:
-        continue  # Skip this room if no centroid could be calculated
+        continue
     adjusted_center = XYZ(center_point.X + project_base_point.X, center_point.Y + project_base_point.Y, center_point.Z + project_base_point.Z)
-    point_info = get_point_info(adjusted_center, 'CENTER', level_name, level_id.ToString(), room_name, room_id, north_rotation_angle)
-    if point_info is not None:  # Ensure that the point information was successfully created
+    point_info = get_point_info(adjusted_center, 'CENTER', level_name, level_id.ToString(), room_identifier, room_id, north_rotation_angle)
+    if point_info is not None:
         output_data.append(point_info)
 
     # Process and adjust corner points based on Project Base Point
     for point in boundary_points:
         adjusted_point = XYZ(point.X + project_base_point.X, point.Y + project_base_point.Y, point.Z + project_base_point.Z)
-        point_info = get_point_info(adjusted_point, 'CORNER', level_name, level_id.ToString(), room_name, room_id, north_rotation_angle)
-        if point_info is not None:  # Ensure that the point information was successfully created
+        point_info = get_point_info(adjusted_point, 'CORNER', level_name, level_id.ToString(), room_identifier, room_id, north_rotation_angle)
+        if point_info is not None:
             output_data.append(point_info)
 
 # Assign the data to the node output
